@@ -1,0 +1,186 @@
+## Learning Objectives
+By the end of this lesson, you will be able to:
+- Add group-level summary statistics as new columns using 'transform()'
+- Count values within groups using 'value_counts()'
+- Compute cumulative sums within groups
+- Sort data wtihin groups to extract minimum, maximum, and top N values with 'apply()' and lambda functions
+
+## Imports
+
+```{python}
+import pandas as pd
+import vega_datasets as vd
+import plotly.express as px
+import warnings
+import calendar
+
+pd.options.mode.copy_on_write = True
+pd.options.display.max_rows = 40
+
+warnings.filterwarnings("ignore")
+```
+
+## Data
+
+```{python}
+weather_raw = vd.data.seattle_weather()
+
+weather = weather_raw.query('date.dt.year == 2012')
+weather["month"] = pd.Categorical(
+    weather["date"].dt.strftime("%B"),
+    categories = list(calendar.month_name[1:]),
+    ordered = True
+)
+
+weather
+```
+
+## Adding summary statistics with transform()
+
+```{python}
+weather.groupby("month").agg(mean_precip = ("precipitation", "mean"))
+#cannot add this summary (via agg) as a new column to dataframe...so we use transform instead
+```
+
+
+```{python}
+weather["mean_precip_month"] = weather.groupby("month")["precipitation"].transform("mean")
+
+weather
+```
+
+```{python}
+weather["median_precip_month"] = weather.groupby("month")["precipitation"].transform("median")
+
+weather
+```
+
+```{python}
+weather["sum_precip_month"] = weather.groupby("month")["precipitation"].transform("sum")
+
+weather
+```
+
+
+```{python}
+weather["precip_month_perc"] = 100 * weather["precipitation"] / weather["sum_precip_month"] 
+
+weather
+```
+
+## Practice Q: Daily Tip Proportions
+Using the 'tips' dataset, calculate:
+1. A new column 'daily_total_tips' containing the total tips for each day
+2. A new column 'tip_proportion' showing what proportion of that days total tips came from each customer
+
+
+```{python}
+tips = px.data.tips()
+tips
+```
+
+
+```{python}
+tips["daily_total_tips"] = tips.groupby("day")["tip"].transform("sum")
+tips
+```
+
+
+```{python}
+tips["tip_proportion"] = tips["tip"] / tips["daily_total_tips"]
+tips
+```
+
+
+```{python}
+weather = weather[["date", "month", "precipitation", "wind", "weather"]]
+```
+
+## Counting Values within groups using value_counts()
+
+
+```{python}
+weather["weather"].value_counts()
+```
+
+```{python}
+weather["weather"].value_counts(normalize=True) #give proportions
+```
+
+Grouped version
+
+
+```{python}
+weather.groupby("month")["weather"].value_counts() #no longer a dataframe, now a hierarchical series
+```
+
+```{python}
+weather.groupby("month")["weather"].value_counts(normalize=True) #no longer a dataframe, now a hierarchical series
+```
+
+
+```{python}
+weather.groupby("month")["weather"].value_counts().reset_index() #turn back into dataframe
+```
+
+
+```{python}
+weather.groupby("month")["weather"].value_counts(normalize=True).reset_index()
+```
+
+## Practice Q: Count Smokers and Non-smokers by day
+Using the 'tips' dataset, count the number of smokers and non-smokers for each day
+
+
+```{python}
+tips = px.data.tips()
+tips
+```
+
+
+```{python}
+tips.groupby("day")["smoker"].value_counts().reset_index()
+```
+
+
+Cumulative sums
+```{python}
+# cumulative rain per month in the weather dataset
+weather["precipitation"].cumsum() #adds amount and gives you a cumulative sum value in the last row
+```
+
+```{python}
+# cumulative rain per month in the weather dataset
+weather["precip_cumul"] = weather.groupby("month")["precipitation"].cumsum() #adds amount and gives you a cumulative sum value in the last row of each month
+weather
+```
+
+## Practice Q: Cumulative Tip Amount by Day
+Using the 'tips' dataset, compute the cumulative sum of 'total_bill' for each 'day', adding a new column 'cumul_total_bill_day'. Then add another column 'cumul_tip_day' that contains the cumulative sum of 'tip' for each 'day'
+
+```{python}
+tips = px.data.tips()
+tips = tips.sort_values('day')
+tips
+```
+
+```{python}
+tips["cumul_total_bill_day"] = tips.groupby("day")["total_bill"].cumsum()
+tips
+```
+
+```{python}
+tips["cumul_tip_day"] = tips.groupby("day")["tip"].cumsum()
+tips
+```
+
+
+```{python}
+weather["precip_sum_month"] = weather.groupby("month")["precipitation"].transform("sum")
+weather
+
+```
+
+What is the main difference between using “agg” and “transform” on a grouped DataFrame?
+
+ agg returns a single row per group, while transform returns something of the same shape as the original data.
